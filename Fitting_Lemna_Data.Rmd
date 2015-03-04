@@ -1,0 +1,40 @@
+---
+title: "Fitting Lemna Data to Models"
+author: "Gabriel Herrick"
+date: "March 3, 2015"
+output: html_document
+---
+
+# Objective 
+I want to model population growth in Lemna using an exponential growth model and a logistic growth model. Both models will give an intrinsic rate of increase (r), which should allow us to make predictions about the spread of lemna in a body of water. 
+
+I am going to try to document much of this process in as simple terms as possible. 
+
+# Getting started with the data
+
+This bit of code calls in the data file, extracts the columns we are interested in, assigns them names like "time", and "size", and selects values corresponding to the low nutrient treatment. Eventually, we will want to explore the data for each treatment level in order to find differences between the treatments, but for now, I am interested in exploring the data one treatment at a time. 
+
+```{r}
+# Enter in the data
+full.data <- read.csv ( "Full_lemna_data.csv", header = T)
+# Select chosen data
+select.data <- as.data.frame( cbind( full.data$Week, full.data$Treatment, 
+                                     full.data$Pop.size))
+names(select.data) <- c("week", "treatment", "pop.size")
+# Extract values of population size that correspond to low nutrient treatment
+low.data <- select.data[select.data$treatment == 3, ]
+# Time will be our x-axis independent variable
+time <- low.data$week
+# Population size will be our y-axis dependent variable
+size <- low.data$pop.size
+```
+
+
+
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+plot(cars)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

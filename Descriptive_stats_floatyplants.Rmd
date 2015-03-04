@@ -1,0 +1,142 @@
+---
+title: "Descriptive_stats_floatyplants"
+author: "Gabriel Herrick"
+date: "March 3, 2015"
+output: html_document
+---
+
+# What is this? 
+I want you to start your analysis of the floating plant data by focusing on descriptive statistics. Descriptive statistics are things like measures of central tendency (e.g. mean, median, mode) and dispersion (e.g. standard deviation). Personally, I think that it is far too common for biologists to place far too much emphasis put on hypothesis testing using p-values. Part of this comes from a shaky foundation in descriptive statistics. So, before we do any p-value based hypothesis testing (if we do any at all), we are going to thoroughly describe our data. 
+
+# Getting set up
+R is a free, open-source program used by anybody who is a badass statistics ninja. That's pretty much reason(s) enough to use it. 
+
+## Step one
+
+[Downlad R](http://cran.rstudio.com)
+
+## Step two
+
+[Download RStudio](http://www.rstudio.com/products/rstudio/download/)
+
+## Step three
+
+[Spend the rest of your life playing in R](http://www.rstudio.com/resources/training/online-learning/#R)
+
+## Step four
+Make a new folder in your computer and put in the file "Full_lemna_data.csv". Make a new  Rscript in Rstudio by using the newfile tab. Save the script in your new folder with the csv file. Go to the "Session" tab and set working directory to source file location. R likes to keep track of a "working directory" where it can load and write files. You are telling R to use the your directory (folder) with the right files in it. 
+
+# First steps in  R
+The first thing we need to do is load our csv file into R. You should attempt to type all of the code I provide below into R yourself. Don't just copy and paste. You don't have to copy all the comments starting with the "#" symbol. 
+
+```{r}
+# Enter in the data
+full.data <- read.csv ( "Full_lemna_data.csv", header = T)
+# Select chosen data from the right columns
+select.data <- as.data.frame( cbind( full.data$Week, full.data$Treatment, 
+                                     full.data$Pop.size))
+# Column names got lost when making the new dataframe. 
+names(select.data) <- c("week", "treatment", "pop.size")
+# one peculiarity here is that R decided to turn "treatment" into a factor
+# variable (which it is), but then it assigned the numbers 1,2,3 to C, H, L 
+# in that order, which is alphabetical. so Control = 1, Low = 3, High = 2. 
+# get the mean number of plants at the end of the experiment for each treatment.
+```
+What did we just do? 
+
+* "read.csv" reads in a comma separated values file. Excel saves files in this format so that they can be easily read by other applications. The header argument says the file has a row of names at the top. 
+* The second line selects the appropriate columns
+* The third line names the columns
+
+What does this stuff look like? You should see in your environment window the data frame select.data. Click on that to see this data frame. You can also type in the following code to show the first 20 rows of data. 
+
+```{r}
+head(select.data, 20)
+```
+This might look a little unusual at first, but this is actually really tidy data to start out with 
+
+# What do we want to do? 
+
+We want to ask our data: What are typical values for each treatment? Do the values for treatments differ? 
+
+In order to answer the first question, we can calculate the mean number of plants at the end of our experiment. They all started out with 10 plants, so the number at the end should give us a good indication of growth. 
+
+```{r}
+mean.table <- with(select.data, (tapply(pop.size, list("nutrient"=treatment, 
+                                                     "week"=week), mean)))
+mean.table
+# This table shows us means for each treatment in rows across each week
+# in columns. 
+```
+## Let's talk about these means
+
+It looks like the means are pretty different. Especially in the last column # 5 corresponding to week six. Our initial week is week 0, instead of week one, because we are measuring time elapsed since starting the experiment. So if we look at week 5, we see that control treatment replicates had an average of 20.25 plants, low nutrient containers had 177.25 plants on average, and high-nutrient containers had 280 plants on average. But, what were differences like between containers in the same treatment --different enough to matter? 
+
+In order to answer the question "are treatments different?" we need to look at the second part of descriptive stats, the estimates of the range of variation.
+
+We could start by simply looking at the range. 
+
+```{r}
+range.table <- with(select.data, (tapply(pop.size, list("nutrient"=treatment, 
+                                                        "week"=week), range)))
+range.pretty <- as.data.frame(range.table)
+names(range.pretty) <- c("week 0", "week 1", "week 2", "week 3", "week 4", 
+                         "week 5")
+row.names(range.pretty) <- c( "Control", "High", "Low")
+range.pretty
+```
+This gives us an idea of the ranges and we can already start to notice some details the means might have missed. All the plants in the high nutrient treatment had the same number of plants (280). This is because plant number was estimated based on percent cover. This is fine, but it needs to be considered in our interpretation of our results, is the kind of thing we need to remember to mention in our methods, and we should keep in mind and be up front about. 
+
+The range is nice, but we are interested in a more thorough description of the data. This is where the five-number summary comes in. 
+
+>The five-number summary of the data consists of the minimum data point, the first quartile, the median, the third quartile, and the maximum data point. Thus these five numbers display the full range of variation (from minimum to maximum), the common range of variation (from first to third quartile), and a typical value (the median). -[source](http://www.physics.csbsju.edu/stats/descriptive2.html)
+
+```{r}
+# The five-number summary
+summary.table <- with(select.data, (tapply(pop.size, list("nutrient"=treatment, 
+                                                        "week"=week), summary)))
+summary.pretty <- as.data.frame(summary.table)
+names(summary.pretty) <- c("week 0", "week 1", "week 2", "week 3", "week 4", 
+                         "week 5")
+row.names(summary.pretty) <- c( "Control", "High", "Low")
+# This is pretty ugly in R output
+# Perhaps it would be better to just look at a little of the data at a time? 
+# Here is the summary data for the last week
+summary.pretty[, 6]
+```
+
+Okay, but this is in table form, and tables are hard to read for humans. What kind of graphical representation of this data might be appropriate? [Box plots](http://en.wikipedia.org/wiki/Box_plot) are explicitly designed to view summary data. Cool. 
+
+```{r}
+boxplot(pop.size ~ treatment*week, data=select.data)
+# This is a lot to look at in one plot. Maybe it makes more sense to look
+# at an individual week or two
+
+# Week 2
+week2.data <- select.data[select.data$week==2, ]
+boxplot(pop.size ~ treatment*week, data=week2.data, 
+        names = c("Tap water", "High", "Low"), ylab = "Number of plants", 
+        xlab = "Nutrient Levels", 
+        main = "Population sizes after 2 weeks of growth")
+```
+
+Now we are getting somewhere! What does this tell us? What do you see here? Look at the overlap in the boxes and whiskers between high and low treatments. This tells us that maybe these two groups of plants aren't so different. Look at how the median value for the low treatment is way up at the top of the box. This means that the data is skewed, i.e. non-normal -the low values are much more spread out than larger values.  Try doing a Google search for "interpreting box plots" for more information. 
+
+# Homework
+
+1. Modify this code to make boxplots for additional weeks.
+2. Save plots as image files and put in your poster.
+3. Pick one of your weeks data and look at the box plots.
+  + Where are the middle 50% of the data found?
+  + What number of plants represents the value at which half the contianers had more plants and half the containers had fewer? 
+  + What do the whiskers in the box plot indicate? 
+  
+  
+4. Input data for your species if you didn't work with Lemna. Repeat all of these analyses for your species. Save your code. 
+
+
+
+Read this for some introductory background on descriptive stats: 
+[A good introduction to descriptive statistics](http://www.physics.csbsju.edu/stats/descriptive2.html)
+
+
