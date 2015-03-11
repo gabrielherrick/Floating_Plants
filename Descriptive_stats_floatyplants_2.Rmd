@@ -1,0 +1,163 @@
+---
+title: "Descriptive_stats_floatyplants"
+author: "Gabriel Herrick"
+date: "March 3, 2015"
+output: html_document
+---
+# Getting Started
+## What is this? 
+I want you to start your analysis of the floating plant data by focusing on descriptive statistics. Descriptive statistics are things like measures of central tendency (e.g. mean, median, mode) and dispersion (e.g. standard deviation). Personally, I think that it is far too common for biologists to place far too much emphasis put on hypothesis testing using p-values. Part of this comes from a shaky foundation in descriptive statistics. So, before we do any p-value based hypothesis testing (if we do any at all), we are going to thoroughly describe our data. 
+
+## Getting set up
+R is a free, open-source program used by anybody who is a badass statistics ninja. That's pretty much reason(s) enough to use it. 
+
+### Step one
+
+[Downlad R](http://cran.rstudio.com)
+
+### Step two
+
+[Download RStudio](http://www.rstudio.com/products/rstudio/download/)
+
+### Step three
+
+[Spend the rest of your life playing in R](http://www.rstudio.com/resources/training/online-learning/#R)
+
+### Step four
+Make a new folder in your computer and put in the file "Full_lemna_data.csv". Make a new  Rscript in Rstudio by using the newfile tab. Save the script in your new folder with the csv file. Go to the "Session" tab and set working directory to source file location. R likes to keep track of a "working directory" where it can load and write files. You are telling R to use the your directory (folder) with the right files in it. 
+
+## First steps in  R
+The first thing we need to do is load our csv file into R. You should attempt to type all of the code I provide below into R yourself. Don't just copy and paste. You don't have to copy all the comments starting with the "#" symbol. 
+
+```{r}
+library(dplyr)
+setwd("~/Documents/Floating_Plants")
+# Enter in the data
+full.data <- read.csv( "Full_lemna_data.csv", header = T)
+lemna <- tbl_df(full.data)
+lemna # should print nicely
+
+# Select chosen data
+# Use dplyr tool "select" and rename columns in one go. 
+lemna <- select(lemna, week = Week, treatment = Treatment, pop.size = Pop.size)
+lemna
+
+```
+What did we just do? 
+
+* "read.csv" reads in a comma separated values file. Excel saves files in this format so that they can be easily read by other applications. The header argument says the file has a row of names at the top. 
+
+What does this stuff look like? You should see in your environment window the data frame "lemna". Click on that to see this data frame. 
+
+This might look a little unusual at first, but this is actually really tidy data to start out with 
+
+## What do we want to do? 
+
+We want to ask our data: What are typical values for each treatment? Do the values for treatments differ? 
+
+In order to answer the first question, we can calculate the mean number of plants at the end of our experiment. They all started out with 10 plants, so the number at the end should give us a good indication of growth. 
+
+```{r}
+# Use grouping functions to let R know that treatment and week are grouping variables
+by.treatment <- group_by(lemna, treatment, week)
+by.treatment
+pop <- summarize(by.treatment, number = mean(pop.size))
+pop # This table shows us means for each treatment arranged by week. 
+pop.range <- summarize(by.treatment, min = min(pop.size), max = max(pop.size))
+pop.range # This shows us the range
+```
+### Let's talk about this data
+We have a list of average values for each container in each treatment in each week. Of course, we want to summarize this data a little bit better, but how?
+
+### The five-number summary
+The five-number summary of the data consists of the minimum data point, the first quartile, the median, the third quartile, and the maximum data point. Thus these five numbers display the full range of variation (from minimum to maximum), the common range of variation (from first to third quartile), and a typical value (the median). -[source](http://www.physics.csbsju.edu/stats/descriptive2.html)
+
+
+
+```{r}
+# The five-number summary
+
+summary.table <- with(by.treatment, (tapply(pop.size, list("nutrient"=treatment, 
+                                                          "week"=week), summary)))
+summary.pretty <- as.data.frame(summary.table)
+
+names(summary.pretty) <- c("week 0", "week 1", "week 2", "week 3", "week 4", 
+                         "week 5")
+row.names(summary.pretty) <- c( "Control", "High", "Low")
+# Let's look at a little of the data, 
+# Here is the summary data for the last week
+summary.pretty[, 6]
+```
+
+Okay, but this is in table form, and tables are hard to read for humans. What kind of graphical representation of this data might be appropriate? [Box plots](http://en.wikipedia.org/wiki/Box_plot) are explicitly designed to view summary data. Cool. 
+
+```{r}
+boxplot(pop.size ~ treatment*week, data=lemna)
+# This is a lot to look at in one plot. Maybe it makes more sense to look
+# at an individual week or two
+
+# Week 2
+week2.data <- filter( lemna, week==2)
+week2.data
+
+plotfactor <- as.factor(rep(c(1, 2, 3), 4))
+boxplot(pop.size ~ plotfactor, data=week2.data, 
+        names = c("Tap water", "Low", "High"), ylab = "Number of plants", 
+        xlab = "Nutrient Levels", 
+        main = "Population sizes after 2 weeks of growth")
+
+```
+
+Now we are getting somewhere! What does this tell us? What do you see here? Look at the overlap in the boxes and whiskers between high and low treatments. This tells us that maybe these two groups of plants aren't so different. Look at how the median value for the low treatment is way up at the top of the box. This means that the data is skewed, i.e. non-normal -the low values are much more spread out than larger values.  Try doing a Google search for "interpreting box plots" for more information. 
+
+## Homework
+
+1. Modify this code to make boxplots for additional weeks.
+2. Save plots as image files and put in your poster.
+3. Pick one of your weeks data and look at the box plots.
+  + Where are the middle 50% of the data found?
+  + What number of plants represents the value at which half the contianers had more plants and half the containers had fewer? 
+  + What do the whiskers in the box plot indicate? 
+  
+  
+4. Input data for your species if you didn't work with Lemna. Repeat all of these analyses for your species. Save your code. 
+
+
+Read this for some introductory background on descriptive stats: 
+[A good introduction to descriptive statistics](http://www.physics.csbsju.edu/stats/descriptive2.html)
+
+
+# A New Hope: Modling the effect of nutrient loading on plant populations. 
+
+Let's reconsider what we want to get from these data: what do we want to know? 
+We want to create a model of plant growth as a function of nutrient loading. 
+Thinking graphically, we want nutrient concentration on the x-axis and some 
+measure of growth on the y-axis. Both of these measures need to be considered 
+in detail: what is the measure of nutrient concentration? What is the measure of 
+plant growth? 
+
+## Measuring nutrient concentration
+
+One of the problems we run in to is that by altering nutrient concentration, we have actually manipulated many, many variables, not just one. We are primarily concerned with only 2: nitrogen and phosphorus. Narrowing our focus down to two nutrients does not change the fact that we have completely confounded these two variables in our experiment; every time we increase one, we increase the other, so we can't separate their effects. So what do we do? 
+
+We want to scale our nutrient treatments in terms of NNC values. What are the NNC values? If we consider all lakes, and look for the highest allowable values for each in the state of FL, we find that the maximum N and P values for a lake are Nmax = 2.23 mg/L and Pmax = 0.49 mg/L. Thus, the NNC Nmax:Pmax ratio is 2.23:0.49 = 4.55:1.  We have a very similar, constant ratio Ntreat:Ptreat = 2.240:0.496 = 4.52. Because our N:P ratio is constant in our treatments and commensurate with the NNC N:P ratio, we can use either N or P to calculate the nutrient loading in our treatments as a proportion of the maximum allowable nutrients according to the Numeric Nutrient Criteria (NNCmax). Thus, our High treatment = 2.24/2.23 = 1.00 NNCmax; our Low treatment = 0.42/2.23 = 0.188 NNCmax. Our control of plain tap water will be considered 0 mg/L = 0 NNCmax. 
+
+Now we can treat our nutrient treatment levels as a continuous variable!
+
+```{r}
+# Convert treatment to NNCmax value
+
+NNCmax <- rep(c(0, 0.188, 1.00), length.out=length(lemna$week))
+lemna = tbl_df(cbind(lemna, NNCmax))
+
+# plot week 5 population sizes
+lemna5 <- filter(lemna, week == 4)
+
+```
+
+
+
+
+
+
+
