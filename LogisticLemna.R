@@ -102,7 +102,7 @@ y <- population
 x <- time
 
 
-# MLE Logistic
+# MLE Logistic Control
 LL <- function(rate, K, mu, sigma) {
   # http://www.r-bloggers.com/fitting-a-model-by-maximum-likelihood/
   # Find residuals

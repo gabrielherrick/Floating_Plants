@@ -1,0 +1,336 @@
+ASB
+========================================================
+author: Gabriel Herrick
+date: 3/12/15
+
+The Problem
+========================================================
+
+Florida uses Numeric Nutrient Criteria to determine impairement of waters. 
+* If (N or P < NNC): unimpaired.
+* If (N or P > NNC): check plant community
+
+How do we use the plant community to determine impairment? 
+
+Linear Vegetation Survey
+========================================================
+Basically, just a transect where you count all the species you see in each section. 
+
+Two scores: 
+1. Coefficient of Conservatism (C of C)
+2. Florida Exotic Pest Plant Council (FLEPPC)
+
+Too many "bad" plants = impaired. 
+
+How are these scores determined? 
+
+C of C scores
+========================================================
+
+Compare known impaired sites to known "healthy" sites. 
+
+Correlate health with presence of plants. 
+
+Low C of C: found more often than not in impaired sites
+
+High C of C: found mostly in "healthy" sites.
+
+Okay, so little alarm bells should be going off in your head...
+
+Correlation is not Causation
+===
+
+Do increased nutrient levels shift communities to have higher abundances of plants with lower C of C scores? 
+
+Does increasing nutrient concentration beyond NNC threshold result in changes to the plant community? 
+
+Do individual plant species population dynamics change in response to increasing nutrient levels beyond NNC thresholds? 
+
+Three species, three nutrient levels
+===
+Nutrient Levels | *Lemna valdiviana* | *Salvinia minima* | *Azolla caroliniana*
+----------------|--------------------|-------------------|---------------------
+Tap water       |                    |                   |       
+Within NNC      |                    |                   |
+NNC threshold   |                    |                   |    
+
+What goes in the cells? 
+
+Each species was grown in 4 containers for each treatment (12 total) for six weeks. 
+
+We measured population size, wet weight, and % coverage. 
+
+Predicting the future!
+===
+
+What happens to populations of the species when nutrient levels go from within NNC to the NNC treshold and beyond? 
+
+As in the past, so in the future. 
+
+Control: Tap Water
+====
+left:50%
+```{r, echo=FALSE}
+
+# MLE Lemna
+library(dplyr)
+setwd("~/Documents/Floating_Plants")
+# Enter in the data
+full.data <- read.csv( "Full_lemna_data.csv", header = T)
+lemna <- tbl_df(full.data)
+#
+# Select chosen data
+# Use dplyr tool "select" and rename columns in one go. 
+lemna <- select(lemna, week = Week, treatment = Treatment, pop.size = Pop.size)
+#
+lemna.control <- filter(lemna, treatment == "C")
+population <- lemna.control$pop.size
+time <- lemna.control$week
+#################
+# Exponential MLE
+#################
+# Make the likelihood function
+LL.ec <- function(rate, mu, sigma) {
+  # http://www.r-bloggers.com/fitting-a-model-by-maximum-likelihood/
+  # Find residuals
+  # for us, y = population, x = time. Parameters beta1 and beta0 are for a 
+  # linear model where if y=mx+b, m = beta1 and b = beta0. These are the params
+  # to be optimized, along with the parameters of the normal distribution in the 
+  # next line. 
+  # R = y - x * beta1 - beta0
+  R <- population - (10*exp(rate*time))
+  # 
+  # Calculate the likelihood for the residuals (with mu and sigma as parameters)
+  #
+  R = suppressWarnings(dnorm(R, mu, sigma, log=TRUE))
+  #
+  # Sum the log likelihoods for all of the data points
+  #
+  -sum(R)
+}
+# Fit the paramters using MLE
+library(bbmle)
+fit.ec <- mle2(LL.ec, start = list(rate = .1, mu = 0, sigma = 20))
+# See the results
+#summary(fit.ec)
+# assign names to results
+params.ec <- coef(fit.ec)
+time.x <- 0:5
+rate.fit.ec <- params.ec[1]
+K.fit.ec <- params.ec[2]
+#
+# Make a function to plot MLE parameters in exponential model
+exp.ec <- function(x) {10*exp(rate.fit.ec*x)}
+#
+# Plot it up
+#
+library(ggplot2)
+base.plot <- ggplot(lemna.control, aes(x=time, y=population))+
+  geom_point(size=4.5)
+ec.plot <- base.plot +
+  theme(axis.title.x = element_text( size=20))+
+  theme(axis.title.y = element_text(size=20))+
+  theme(axis.text.x  = element_text(size=16))+
+  theme(axis.text.y  = element_text(size=16))+
+  stat_function(fun=exp.ec, color = "#E69F00", size = 1.5)+
+  #geom_line(aes(x=time.x, y= y.ec, color = "red"))+
+  annotate("text", x = 2.5, y = 8, label = "Exponential; r = 0.14", 
+           color = "#E69F00", size=8)
+  #theme(legend.position="none")
+
+
+#
+#######################
+# MLE Logistic Control
+#######################
+#
+
+#
+LL.lc <- function(rate, K, mu, sigma) {
+  # http://www.r-bloggers.com/fitting-a-model-by-maximum-likelihood/
+  # Find residuals
+  # for us, y = population, x = time. Parameters beta1 and beta0 are for a 
+  # linear model where if y=mx+b, m = beta1 and b = beta0. These are the params
+  # to be optimized, along with the parameters of the normal distribution in the 
+  # next line. 
+  # R = y - x * beta1 - beta0
+  num <- 10*exp(rate*time)
+  denom <- 1+(exp(rate*time)-1)*(10/K)
+  #           
+  R <- population - (num/denom)
+  
+  #R <- population - (K*10*exp(rate*time))/(K+10*(exp(rate*time)-1))
+  # 
+  # Calculate the likelihood for the residuals (with mu and sigma as parameters)
+  #
+  R <- suppressWarnings(dnorm(R, mu, sigma, log=TRUE))
+  #
+  # Sum the log likelihoods for all of the data points
+  #
+  -sum(R)
+}
+#
+
+#
+fit.lc <- mle2(LL.lc, start = list(rate = 1, K = 22, mu = 0, sigma = 5))
+#summary(fit.lc)
+params.lc <- coef(fit.lc)
+time.x <- 0:5
+rate.fit.lc <- params.lc[1]
+K.fit.lc <- params.lc[2]
+#lc.y <- (K.fit.lc*10*exp(rate.fit.lc*time.x))/
+ # (K.fit.lc+10*(exp(rate.fit.lc*time.x)-1))
+#
+# Make a function to plot MLE parameters in logistic model
+log.ec <- function(x) {
+  num <- 10*exp(rate.fit.lc*x)
+  denom <- 1+(exp(rate.fit.lc*x)-1)*(10/K.fit.lc) 
+  num/denom
+}
+
+#
+# Add logisitic model to control plot
+#
+lc.plot <- ec.plot +
+  stat_function(fun=log.ec, color = "#56B4E9", size = 1.5)+
+   annotate( "text", x=2.5, y=31, label= "Logistic; r= 1.14, K = 24", 
+            color="#56B4E9", size=8)
+lc.plot
+#
+```
+
+***
+```{r, echo=FALSE}
+# Do AIC
+AICctab(fit.lc, fit.ec, nobs = 24, weights = TRUE)
+
+```
+
+
+
+Low Nutrients: 0.188*NNC
+===
+```{r,echo=FALSE}
+##################################################
+# LOW NUTRIENTS
+##################################################
+#
+lemna.low <- filter(lemna, treatment == "L")
+population <- lemna.low$pop.size
+time <- lemna.low$week
+#
+#################
+# Exponential MLE
+#################
+# Make the likelihood function
+LL.el <- function(rate, mu, sigma) {
+  # http://www.r-bloggers.com/fitting-a-model-by-maximum-likelihood/
+  # rate is the param to be optimized
+  # Find residuals
+  # 
+  R <- population - (10*exp(rate*time))
+  # 
+  # Calculate the likelihood for the residuals (with mu and sigma as parameters)
+  #
+  R = suppressWarnings(dnorm(R, mu, sigma, log=TRUE))
+  #
+  # Sum the log likelihoods for all of the data points
+  #
+  -sum(R)
+}
+# Fit the paramters using MLE
+exponential <- mle2(LL.el, start = list(rate = .1, mu = 0, sigma = 20))
+# See the results
+#summary(exponential)
+# assign names to results
+params.el <- coef(exponential)
+time.x <- 0:5
+rate.fit.el <- params.el[1]
+K.fit.el <- params.el[2]
+#
+# Make a function to plot MLE parameters in exponential model
+exp.el <- function(x) {10*exp(rate.fit.el*x)}
+#
+# Plot it up
+#
+base.plot <- ggplot(lemna.low, aes(x=time, y=population))+
+  geom_point(size=4.5)
+el.plot <- base.plot +
+  theme(axis.title.x = element_text( size=20))+
+  theme(axis.title.y = element_text(size=20))+
+  theme(axis.text.x  = element_text(size=16))+
+  theme(axis.text.y  = element_text(size=16))+
+  stat_function(fun=exp.el, color = "#E69F00", size = 1.5)+
+  #geom_line(aes(x=time.x, y= y.ec, color = "red"))+
+  annotate("text", x = 2.5, y = 8, label = "Exponential; r = 0.58", 
+           color = "#E69F00", size=8)
+#theme(legend.position="none")
+
+
+
+#
+#######################
+# MLE Logistic 
+#######################
+#
+
+#
+LL.lc <- function(rate, K, mu, sigma) {
+  # http://www.r-bloggers.com/fitting-a-model-by-maximum-likelihood/
+  # Find residuals
+  # for us, y = population, x = time. Parameters beta1 and beta0 are for a 
+  # linear model where if y=mx+b, m = beta1 and b = beta0. These are the params
+  # to be optimized, along with the parameters of the normal distribution in the 
+  # next line. 
+  # R = y - x * beta1 - beta0
+  num <- 10*exp(rate*time)
+  denom <- 1+(exp(rate*time)-1)*(10/K)
+  #           
+  R <- population - (num/denom)
+  
+  #R <- population - (K*10*exp(rate*time))/(K+10*(exp(rate*time)-1))
+  # 
+  # Calculate the likelihood for the residuals (with mu and sigma as parameters)
+  #
+  R <- suppressWarnings(dnorm(R, mu, sigma, log=TRUE))
+  #
+  # Sum the log likelihoods for all of the data points
+  #
+  -sum(R)
+}
+#
+
+#
+logistic <- mle2(LL.lc, start = list(rate = 1, K = 300, mu = 0, sigma = 20))
+#summary(logistic)
+params.low <- coef(logistic)
+time.x <- 0:5
+rate.fit.low <- params.low[1]
+K.fit.low <- params.low[2]
+#
+# Make a function to plot MLE parameters in logistic model
+log.low <- function(x) {
+  num <- 10*exp(rate.fit.low*x)
+  denom <- 1+(exp(rate.fit.low*x)-1)*(10/K.fit.low) 
+  num/denom
+}
+low.plot <- el.plot +
+  stat_function(fun=log.low, color = "#56B4E9", size = 1.5)+
+  annotate( "text", x=2.5, y=155, label= "Logistic; r= 0.77, K = 287", 
+            color="#56B4E9", size=8)
+low.plot
+```
+***
+```{r, echo=FALSE}
+
+# Do AIC
+AICctab(logistic, exponential, nobs = 24, weights = TRUE)
+
+
+```
+
+
+
+
+
+

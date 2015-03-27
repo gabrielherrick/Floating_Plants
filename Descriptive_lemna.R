@@ -43,7 +43,7 @@ boxplot(pop.size ~ treatment*week, data=lemna)
 # Week 2
 week2.data <- filter( lemna, week==2)
 week2.data
-
+#mydata$Treatment = factor(mydata$Treatment,c("L","M","H"))
 plotfactor <- as.factor(rep(c(1, 2, 3), 4))
 boxplot(pop.size ~ plotfactor, data=week2.data, 
         names = c("Tap water", "Low", "High"), ylab = "Number of plants", 

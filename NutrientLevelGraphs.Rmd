@@ -1,0 +1,94 @@
+---
+title: "NNC Thresholds"
+author: "Gabriel Herrick"
+date: "March 21, 2015"
+output: html_document
+---
+
+If we consider all lakes, and look for the highest allowable values for each in the state of FL, we find that the maximum N and P values for a lake are Nmax = 2.23 mg/L and Pmax = 0.49 mg/L. Thus, the NNC Nmax:Pmax ratio is 2.23:0.49 = 4.55:1.  We have a very similar, constant ratio Ntreat:Ptreat = 2.240:0.496 = 4.52. Because our N:P ratio is constant in our treatments and commensurate with the NNC N:P ratio, we can use either N or P to calculate the nutrient loading in our treatments as a proportion of the maximum allowable nutrients according to the Numeric Nutrient Criteria (NNCmax). Thus, our High treatment = 2.24/2.23 = 1.00 NNCmax; our Low treatment = 0.42/2.23 = 0.188 NNCmax. Our control of plain tap water will be considered 0 mg/L = 0 NNCmax. 
+
+# Nutrient Levels
+
+```{r}
+library(ggplot2)
+
+treat.high.N <- 2.24
+treat.low.N <- 0.42
+treat.high.P <- 0.50
+treat.low.P <- 0.093
+
+NNC.N <- 2.23
+NNC.P <- 0.49
+
+
+dat <- data.frame(
+  treatment= factor(c("Tap", "Low", "High"), levels = c("Tap", "Low", "High")),
+  Nitrogen = c(0, treat.low.N, treat.high.N), 
+  Phosphorus = c(0, treat.low.P, treat.high.P)
+  )
+
+
+```
+
+Bar Graphs
+```{r}
+# very basic bar graph
+ggplot(data = dat, aes(x=treatment, y=Nitrogen))+
+  geom_bar(stat="identity")
+
+# map treatment to different fill colors, add black line, no legend
+ggplot(data = dat, aes(x=treatment, y=Nitrogen, fill = treatment))+
+  geom_bar(color="black", stat="identity")+
+  guides(fill=FALSE)
+
+```
+To draw multiple lines, the points must be grouped by a variable; otherwise all points will be connected by a single line. In this case, we want them to be grouped by nutrient. This means we need to modify the data frame.
+
+```{r}
+Nitrogen <- c(0, treat.low.N, treat.high.N)
+Phosphorus <- c(0, treat.low.P, treat.high.P)
+N.rel <- (Nitrogen/NNC.N)*100
+P.rel <- (Phosphorus/NNC.P)*100
+
+data <- data.frame(
+  treatment= factor(rep(c("Tap", "Low", "High"),2), levels = c("Tap", "Low", "High")),
+  nutrient = factor(rep(c("nitrogen", "phosphorus"), each=3)),
+  concentration = c(N.rel,P.rel)
+  )
+
+```
+
+Now that the data frame is modified, we can make the line graph with multiple lines. 
+
+```{r}
+# Basic line graph
+
+line.plot <- ggplot(data=data, aes(x=treatment, y=concentration, group=nutrient)) +
+    geom_line(aes(color=nutrient), size=2) +
+    geom_point(size=3, fill="white")+
+    xlab("Nutrient level") + ylab("Relative concentration")+
+    geom_hline(aes(yintercept=100), size = 2)+
+    #theme(axis.title.x=element_text(size=20))+
+  #theme(axis.text.x = element_text(size=20))+
+    #theme(axis.title.y=element_text(size=20))+
+  #theme(axis.text.y = element_text(size=20))+
+  annotate("text", x = 1.5, y = 95, label = "NNC threshold")+
+  theme_bw(base_size=20)+
+  theme(legend.position=c(.85, .50))
+  
+line.plot
+
+  
+````
+
+Print line plot to file
+```{r}
+png("TreatmentLevels.png")
+# or tiff("plot.tiff")
+print(line.plot)
+dev.off()
+
+```
+
+
+

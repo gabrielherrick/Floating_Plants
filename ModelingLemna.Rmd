@@ -1,0 +1,121 @@
+---
+title: "ModelingLemna"
+author: "Gabriel Herrick"
+date: "March 11, 2015"
+output: html_document
+---
+
+Note: full code for this can be found in LogisticLemna.R and Descriptive_lemna.R
+which can be found at my [GitHub](https://github.com/gabrielherrick/Floating_Plants). 
+
+
+## Overview
+
+### Numeric Nutrient Criteria
+Florida developed Numeric Nutrient Criteria for assessing water quality in Florida waters. These criteria determine allowable levels of nitrogen (N) and phosphorus (P) in lakes and streams. Further, allowable levels differ among lakes and streams in different regions of the state. 
+
+### What happens if a lake or stream exceeds Numeric Nutrient Criteria?
+
+These nutrient levels are used to determine if a stream or lake is "impaired" such that it is incapable of meeting its designated use (e.g. swimming, aquatic life support). If a lake or stream has N or P levels that exceed the numeric nutrient criteria, it can still be considered unimpaired based on a survey of the plant community. 
+
+### How is the plant community used to determine impairment? 
+
+A Linear Vegetation Survey is done to estimate abundance of aquatic plant species. Each species has two scores: the Coefficient of Conservatism (C of C) and the Florida Exotic Pest Plant Council (FLEPPC) score. If too many species with "bad" scores are too abundant, the water is impaired. As a result, these scores for plant species matter, and can be the deciding factor in determing if a stream or lake is impaired. 
+
+### How are the C of C and FLEPPC scores determined? 
+FLEPPC scores are given to exotic plants, and reflect not only the origin of a plant, but the negative impact it can have in habitats that it invades. C of C scores by comparing reference "healthy" waters to known impaired waters --in other words, by correlation. For most of these C of C scores, there is no evidence of a causal relationship between elevated nutrient levels and changes in abundance or distribution. 
+
+### What is the problem? 
+
+Determination of impairment in Florida waters depends, in part, on the species make-up of aquatic plant communities. However, the determination of which plants tend to tip the scales toward impairment is based on correlation with reference "healthy" waters, not on a causal relationsip between nutrient levels and altered plant communities. 
+
+### What do we need to know? 
+
+A better determination of impairment would be based on causal, mechanistic relationships between elevated nutrient levels and changes in the plant community. What we need are clear links between increases in nutrient concentration beyond the NNC and shifts in community structure through altered population dynamics of individual species. 
+
+### Methodology
+
+We experimentally create nutrient levels within and exceeding the NNC to determine if these nutrient levels alter population dynamics of three aquatic plant species: *Lemna valdiviana*, *Salvinia minima*, and *Azolla caroliniana*. 
+
+We grew plants in three nutrient concentrations. Our high nutrient treatment was right at the highest allowable levels of N and P for Florida lakes and streams. Our low nutrient treatment was at 0.188 times the maximum limit, and commensurate with average values found in lakes around our Lakeland campus. Our control treatment was plain tap water. We measured number of plants, percent coverage of containers, and wet mass. 
+
+
+
+## Results
+
+For this data set, it makes sense to look at population sizes in week 4. Although we ran the experiment for a fifth week, the week five population sizes are only estimated from 100% cover of the surface area, and thus have no variance. Sometimes data sets aren't ideal.
+
+Start as always by reading in data. 
+
+```{r, echo=FALSE}
+library(dplyr)
+setwd("~/Documents/Floating_Plants")
+# Enter in the data
+full.data <- read.csv( "Full_lemna_data.csv", header = T)
+lemna <- tbl_df(full.data)
+#
+# Select chosen data
+# Use dplyr tool "select" and rename columns in one go. 
+lemna <- select(lemna, week = Week, treatment = Treatment, pop.size = Pop.size)
+# lemna # should look nice with new names
+# After reading in the data, we want to select the population size at the end of 
+# the experiment to see how plants grew in different treatments.
+# Select week 4 data
+week4.data <- filter( lemna, week==4)
+l.pop <- week4.data$pop.size
+# Make a factor list
+# mydata$Treatment = factor(mydata$Treatment,c("L","M","H"))
+week4.data$treatment <- factor(week4.data$treatment, c("C", "L", "H"))
+plotfactor <- as.factor(rep(c(1, 2, 3), 4))
+boxplot(pop.size ~ treatment, data=week4.data, 
+        names = c("Tap water", "Low", "High"), ylab = "Number of plants", 
+        xlab = "Nutrient Levels", 
+        main = "Population sizes after four weeks of growth")
+
+```
+
+Looking at this boxplot, we can see clear differences between treatments in ending population sizes after four weeks of growth. It also looks like population size is a linear function of nutrient level, but in order to establish that, we would have to convert treatment to numeric nutrient values. 
+
+```{r, echo=FALSE}
+# Convert treatment to NNCmax value
+NNCmax <- rep(c(0, 0.188, 1.00), length.out=length(lemna$week))
+lemnaNNC = tbl_df(cbind(lemna, NNCmax))
+# plot week 4 population sizes
+lemna4 <- filter(lemnaNNC, week == 4)
+
+library(ggplot2)
+
+p <- ggplot(lemna4, aes(NNCmax, (pop.size)))
+            
+p + geom_point(size=4) +
+  ylab("Population Size") +
+  theme(axis.title.x = element_text(face="bold", size=20, vjust=0),
+        axis.text.x  = element_text(size=16), 
+        axis.text.y = element_text(size = 16),
+        axis.title.y = element_text(face = "bold", size = 20))+
+  stat_smooth(method= "lm")
+
+# The shaded area from stat_smooth is the pointwise 95% confidence interval
+# this shows that this relationship might not be very linear, a conclusion further
+# supported by plotting regression diagnostics below. 
+```
+
+The linear model seems to fit pretty well, but not perfect. In particular the low values are systematically higher than expected by a linear model, and the control seem systematically lower than expected by the model. We can look at the statistics for the linear model and see that it fits pretty well.  
+
+
+```{r, echo=FALSE}
+# Linear regression
+fit <- lm(pop.size~NNCmax, data=lemna4)
+summary(fit)
+```
+However, I'm still not convinced. The F statistic is significant, indicating that there is some relationship between nutrient level and population size, but we know that is going to be the case. I don't think anyone can seriousyl entertain the doubt that increased nutrient levels, especially these levels above tap water, are going to increase plant growth. I'm not interested in rejecting a null hypothesis that there is no relationship betweeen nutrients and plant growth. 
+
+I am much more interested in exploring what the shape of the relationship between these particular nutrient levels and plant growth are. I'm interested in getting the shape of the prective model right. 
+
+So what model might fit better than a simple linear relationship between nutrient concentrations and population size? Population growth models might give us some idea. 
+
+
+
+
+## Modeling each treatment
+
